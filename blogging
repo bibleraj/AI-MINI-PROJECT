@@ -1,0 +1,128 @@
+package bible;
+
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+import java.sql.*;
+
+public class blog extends JFrame {
+
+    private JTextField usernameField;
+    private JPasswordField passwordField;
+    private JComboBox<String> roleBox;
+    private Connection conn;
+
+    public blog() {
+        setTitle("Blogging Platform - Role Based Access");
+        setSize(400, 300);
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
+        setLayout(new GridLayout(6, 1));
+
+        // DB Connection
+        connectDB();
+
+        // GUI Components
+        add(new JLabel("Username:"));
+        usernameField = new JTextField();
+        add(usernameField);
+
+        add(new JLabel("Password:"));
+        passwordField = new JPasswordField();
+        add(passwordField);
+
+        add(new JLabel("Select Role:"));
+        String[] roles = {"admin", "author", "reader"};
+        roleBox = new JComboBox<>(roles);
+        add(roleBox);
+
+        JButton registerBtn = new JButton("Register");
+        JButton loginBtn = new JButton("Login");
+        add(registerBtn);
+        add(loginBtn);
+
+        // Button actions
+        registerBtn.addActionListener(e -> registerUser());
+        loginBtn.addActionListener(e -> loginUser());
+    }
+
+    private void connectDB() {
+        try {
+            conn = DriverManager.getConnection(
+                "jdbc:mysql://localhost:3306/proj",
+                "root",
+                "logamani"            );
+            System.out.println("Database Connected!");
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Database connection failed!");
+            ex.printStackTrace();
+        }
+    }
+
+    private void registerUser() {
+        String username = usernameField.getText();
+        String password = new String(passwordField.getPassword());
+        String role = roleBox.getSelectedItem().toString();
+
+        try {
+            PreparedStatement pst = conn.prepareStatement(
+                "INSERT INTO users(username,password,role) VALUES(?,?,?)"
+            );
+            pst.setString(1, username);
+            pst.setString(2, password);
+            pst.setString(3, role);
+            pst.executeUpdate();
+            JOptionPane.showMessageDialog(this, "User Registered Successfully!");
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this, "Registration Failed: " + e.getMessage());
+        }
+    }
+
+    private void loginUser() {
+        String username = usernameField.getText();
+        String password = new String(passwordField.getPassword());
+
+        try {
+            PreparedStatement pst = conn.prepareStatement(
+                "SELECT role FROM users WHERE username=? AND password=?"
+            );
+            pst.setString(1, username);
+            pst.setString(2, password);
+            ResultSet rs = pst.executeQuery();
+
+            if (rs.next()) {
+                String role = rs.getString("role");
+                JOptionPane.showMessageDialog(this, "Welcome, " + role + "!");
+                openDashboard(role);
+            } else {
+                JOptionPane.showMessageDialog(this, "Invalid credentials!");
+            }
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this, "Login Error: " + e.getMessage());
+        }
+    }
+
+    private void openDashboard(String role) {
+        JFrame dash = new JFrame(role + " Dashboard");
+        dash.setSize(400, 200);
+        dash.setLocationRelativeTo(null);
+        dash.setLayout(new GridLayout(2, 1));
+
+        JLabel msg = new JLabel("Logged in as: " + role, SwingConstants.CENTER);
+        dash.add(msg);
+
+        if (role.equals("admin")) {
+            dash.add(new JLabel("Admin Panel: Manage Users and Posts", SwingConstants.CENTER));
+        } else if (role.equals("author")) {
+            dash.add(new JLabel("Author Panel: Create/Edit Posts", SwingConstants.CENTER));
+        } else {
+            dash.add(new JLabel("Reader Panel: View Posts", SwingConstants.CENTER));
+        }
+
+        dash.setVisible(true);
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> new blog().setVisible(true));
+    }
+}
